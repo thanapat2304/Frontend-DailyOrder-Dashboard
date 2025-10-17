@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: .
+    ports:
+      - "8093:8093"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    container_name: daily-order-frontend
