@@ -221,7 +221,16 @@ function ProductDelivery() {
     try {
       setTableLoading(true);
       setError(null);
-      const dateStr = new Date(selectedDate).toISOString().slice(0, 10);
+      // แก้ไขปัญหา timezone โดยใช้ local date
+      const date = new Date(selectedDate);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
+      console.log('Selected date:', selectedDate);
+      console.log('Formatted date string:', dateStr);
+      
       let url = `${API_BASE_URL}/api/product-delivery?wh=${encodeURIComponent(selectedHub)}&date=${dateStr}`;
       // if (selectedCustomer) { // This line is removed
       //   url += `&customer=${encodeURIComponent(selectedCustomer)}`; // This line is removed
@@ -287,7 +296,12 @@ function ProductDelivery() {
               <SoftDatePicker
                 value={selectedDate}
                 options={{ dateFormat: "Y-m-d" }}
-                onChange={(dates) => setSelectedDate(dates && dates[0] ? dates[0] : null)}
+                onChange={(dates) => {
+                  console.log('DatePicker onChange - dates:', dates);
+                  const selectedDateValue = dates && dates[0] ? dates[0] : null;
+                  console.log('DatePicker onChange - selectedDateValue:', selectedDateValue);
+                  setSelectedDate(selectedDateValue);
+                }}
               />
             </SoftBox>
           </Grid>

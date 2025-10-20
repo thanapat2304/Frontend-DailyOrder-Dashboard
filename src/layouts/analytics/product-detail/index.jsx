@@ -108,7 +108,15 @@ function ProductDetail() {
       try {
         setLoading(true);
         setError(null);
-        const dateStr = new Date(selectedDate).toISOString().slice(0, 10);
+        // แก้ไขปัญหา timezone โดยใช้ local date
+        const date = new Date(selectedDate);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        
+        console.log('fetchProductsByDate - Selected date:', selectedDate);
+        console.log('fetchProductsByDate - Formatted date string:', dateStr);
         
         // สร้าง URL พร้อม branch parameter ถ้ามี
         let url = `${API_BASE_URL}/api/products-by-date?date=${dateStr}`;
@@ -235,7 +243,15 @@ function ProductDetail() {
     try {
       setTableLoading(true);
       setError(null);
-      const dateStr = new Date(selectedDate).toISOString().slice(0, 10);
+      // แก้ไขปัญหา timezone โดยใช้ local date
+      const date = new Date(selectedDate);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
+      console.log('handleSearch - Selected date:', selectedDate);
+      console.log('handleSearch - Formatted date string:', dateStr);
       
       // สร้าง URL พร้อม branch parameter ถ้ามี
       let url = `${API_BASE_URL}/api/product-detail?date=${dateStr}&product=${encodeURIComponent(selectedProduct)}`;
@@ -332,7 +348,12 @@ function ProductDetail() {
               <SoftDatePicker
                 value={selectedDate}
                 options={{ dateFormat: "Y-m-d" }}
-                onChange={(dates) => setSelectedDate(dates && dates[0] ? dates[0] : null)}
+                onChange={(dates) => {
+                  console.log('DatePicker onChange - dates:', dates);
+                  const selectedDateValue = dates && dates[0] ? dates[0] : null;
+                  console.log('DatePicker onChange - selectedDateValue:', selectedDateValue);
+                  setSelectedDate(selectedDateValue);
+                }}
               />
             </SoftBox>
           </Grid>
