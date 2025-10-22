@@ -16,11 +16,14 @@ Coded by www.creative-tim.com
 // @mui material components
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
+import Icon from "@mui/material/Icon";
 import { useState, useEffect } from "react";
 
 // Soft UI Dashboard PRO React components
 import SoftBox from "components/SoftBox";
 import SoftSnackbar from "components/SoftSnackbar";
+import SoftTypography from "components/SoftTypography";
+import SoftDatePicker from "components/SoftDatePicker";
 
 // Soft UI Dashboard PRO React example components
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
@@ -58,30 +61,67 @@ function Overview() {
   
   // State for system announcement snackbar
   const [showAnnouncementSB, setShowAnnouncementSB] = useState(false);
+  
+  // State for the date used in WHERE clause from backend
+  const [dateUsed, setDateUsed] = useState(null);
+  
+  // State for selected date from DatePicker
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  // Helper: format Date/string to YYYY-MM-DD
+  const formatToYMD = (value) => {
+    if (!value) return null;
+    // If already in YYYY-MM-DD, return as is
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
 
   // Fetch dashboard data from API
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`${API_BASE_URL}/api/dashboard`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        setDashboardData(data);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
+  const fetchDashboardData = async (customDate = null) => {
+    try {
+      setLoading(true);
+      let url = `${API_BASE_URL}/api/dashboard`;
+      
+      // If custom date is provided, send it as query parameter
+      if (customDate) {
+        url += `?custom_date=${encodeURIComponent(customDate)}`;
       }
-    };
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setDashboardData(data);
+      setDateUsed(data.data?.date_used || null);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchDashboardData();
+  // Initial data fetch
+  useEffect(() => {
+    // Only use date from URL; do NOT fallback to localStorage (new tab should use backend logic)
+    const params = new URLSearchParams(window.location.search);
+    const urlDate = params.get('custom_date');
+    const initialDate = formatToYMD(urlDate);
+    if (initialDate) {
+      setSelectedDate(initialDate);
+      fetchDashboardData(initialDate);
+    } else {
+      fetchDashboardData();
+    }
   }, []);
 
   // Show announcement snackbar when component mounts
@@ -92,8 +132,22 @@ function Overview() {
   // Close announcement snackbar
   const closeAnnouncementSB = () => setShowAnnouncementSB(false);
 
-  // Function to get dynamic date based on current time
+  // Function to get dynamic date based on backend data
   const getDynamicDate = () => {
+    // Use the actual date from backend if available
+    if (dateUsed) {
+      const [year, month, day] = dateUsed.split('-');
+      const buddhistYear = parseInt(year) + 543;
+      
+      const monthNames = [
+        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+      ];
+      
+      return `${parseInt(day)} ${monthNames[parseInt(month) - 1]} ${buddhistYear}`;
+    }
+    
+    // Fallback to current time calculation
     const now = new Date();
     const currentHour = now.getHours();
     const weekday = now.getDay(); // 0=Sun,1=Mon,...,5=Fri,6=Sat
@@ -195,6 +249,8 @@ function Overview() {
   const totalCustomers = stats?.total_customers ?? 0;
   const totalRevenue = stats?.total_revenue ?? 0;
 
+  const currentDateValue = selectedDate || dateUsed || null;
+
   return (
     <DashboardLayout>
       <DashboardNavbar />
@@ -215,6 +271,39 @@ function Overview() {
       />
       
       <SoftBox py={3}>
+        <SoftBox mb={3}>
+          <Grid container spacing={3}>
+            <Grid item xs={6} md={4} lg={2}>
+            <SoftBox display="flex" flexDirection="column" justifyContent="flex-end" height="100%">
+              <SoftDatePicker
+                options={{ dateFormat: "Y-m-d" }}
+                input={{
+                  icon: { component: <Icon>date_range</Icon>, direction: "right" },
+                }}
+                {...(currentDateValue ? { value: currentDateValue } : {})}
+                onChange={(dates) => {
+                  console.log('DatePicker onChange - dates:', dates);
+                  const selectedDateValue = dates && dates[0] ? dates[0] : null;
+                  console.log('DatePicker onChange - selectedDateValue:', selectedDateValue);
+                  
+                  if (selectedDateValue) {
+                  const ymd = formatToYMD(selectedDateValue);
+                  if (ymd) {
+                    setSelectedDate(ymd);
+                    // Reflect in URL without reload (persistence across refreshes)
+                    const params = new URLSearchParams(window.location.search);
+                    params.set('custom_date', ymd);
+                    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+                    // Fetch new data with the selected date (YYYY-MM-DD)
+                    fetchDashboardData(ymd);
+                  }
+                  }
+                }}
+              />
+            </SoftBox>
+            </Grid>
+          </Grid>
+        </SoftBox>
         <SoftBox mb={3}>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6} lg={3}>
